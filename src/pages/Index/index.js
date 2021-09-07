@@ -1,0 +1,283 @@
+import React from 'react'
+import axios from "axios"
+import { Carousel, Flex, Grid, WingBlank } from 'antd-mobile';
+//引入css
+import "./index.scss"
+//导入导航菜单组件
+import Nav1 from "../../assets/images/nav-1.png"
+import Nav2 from "../../assets/images/nav-2.png"
+import Nav3 from "../../assets/images/nav-3.png"
+import Nav4 from "../../assets/images/nav-4.png"
+
+import img1 from "../../assets/images/1.jpg"
+import img2 from "../../assets/images/2.jpg"
+import img3 from "../../assets/images/3.jpg"
+
+// 导航菜单数据
+const navs = [
+  {
+    id: 1,
+    img: Nav1,
+    title: '整租',
+    path: '/home/list'
+  },
+  {
+    id: 2,
+    img: Nav2,
+    title: '合租',
+    path: '/home/list'
+  },
+  {
+    id: 3,
+    img: Nav3,
+    title: '地图找房',
+    path: '/map'
+  },
+  {
+    id: 4,
+    img: Nav4,
+    title: '去出租',
+    path: '/rent'
+  }
+]
+
+//获取地理位置信息，原生的方法
+navigator.geolocation.getCurrentPosition(position => {
+  console.log(position, "position");
+})
+/* 
+  1 打开百度地图JS API 定位文档 。
+  2 通过 IP 定位获取到当前城市名称。
+  3 调用我们服务器的接口，换取项目中的城市信息（有房源的城市的名称和id）。
+  4 将接口返回的城市信息展示在顶部导航栏中。
+*/
+export default class Index extends React.Component {
+  state = {
+    //轮播图的状态数据
+    swipers: [
+      { id: 1, imgSrc: img1 },
+      { id: 2, imgSrc: img2 },
+      { id: 3, imgSrc: img3 }
+    ],
+    imgHeight: 212,
+    isSwipersLoaded: false,
+    // 租房小组数据
+    groups: [
+      { id: 1, title: "本地合租", desc: "归属感觉", imgSrc: Nav2 },
+      { id: 2, title: "四合院", desc: "古风感觉", imgSrc: Nav3 },
+      { id: 3, title: "单身公寓", desc: "一个人住很舒服", imgSrc: Nav4 },
+      { id: 4, title: "人才公寓", desc: "价格便宜", imgSrc: Nav1 },
+    ],
+    // 最新资讯
+    news: [
+      { id: 1, imgSrc: img1, title: "好的房源来自好的地段|让我们拭目以待", from: "新华网", date: "一天前" },
+      { id: 2, imgSrc: img2, title: "如何去选择一个地段，今晚来我直播间看看吧 ", from: "中文网", date: "一周前" },
+      { id: 3, imgSrc: img3, title: "今年的球赛不能错过一个好的地段，这里有清吧和酒吧一起", from: "体育新闻网", date: "三天前" },
+    ],
+    // 当前城市名称
+    curCityName: '武汉'
+  }
+  //获取轮播图的状态方法
+  async getSwipers() {
+    const res = await axios.get("http://localhost:8080/home/swiper")
+    console.log(res, "轮播数据");
+    //简化的语法形式
+    if (res !== "") {
+      //     this.setState({
+      //   swipers:res.data.body
+      // })  
+      //函数形式的写法
+      this.setState(() => {
+        return {
+          swipers: res.data.body,
+          sSwipersLoaded: true
+        }
+      })
+    }
+  }
+  // 获取租房小组数据的方法
+  async getGroups() {
+    const res = await axios.get('http://localhost:8080/home/groups', {
+      params: {
+        area: 'AREA%7C88cff55c-aaa4-e2e0'
+      }
+    })
+
+    // console.log(res)
+    this.setState({
+      groups: res.data.body
+    })
+  }
+  // 获取最新资讯
+  async getNews() {
+    const res = await axios.get(
+      'http://localhost:8080/home/news?area=AREA%7C88cff55c-aaa4-e2e0'
+    )
+
+    this.setState({
+      news: res.data.body
+    })
+  }
+  //渲染导航菜单
+  renderNavs() {
+    return navs.map(item => (
+      <Flex.Item
+        key={item.id}
+        onClick={() => this.props.history.push(item.path)}
+      >
+        <img src={item.img} alt="" />
+        <h2>{item.title}</h2>
+      </Flex.Item>
+    ))
+  }
+  componentDidMount() {//生命周期函数渲染页面
+    this.getSwipers()  //调用接口的方法
+    this.getGroups()
+    this.getNews()
+
+    //通过 IP 定位获取到当前城市名称
+    var myCity = new window.BMapGL.LocalCity();
+    myCity.get(async res => {
+      console.log(res, "城市信息");
+      this.setState({
+        curCityName: res.name
+      })
+      const dizhi = { label: "合肥", value: "7" }
+      localStorage.setItem('hkzf_city', JSON.stringify(dizhi))
+      const result = await axios.get(
+        `http://localhost:8080/area/info?name=${res.name}`
+      )
+      console.log(result)
+      //   this.setState({
+      //     curCityName: result.data.body.label
+      //   })
+    });
+  }
+  // 渲染轮播图结构
+  renderSwipers() {
+    return this.state.swipers.map(item => (
+      <a
+        key={item.id}
+        href="http://www.baidu.com"
+        style={{ display: 'inline-block', width: '100%', height: this.state.imgHeight }}
+      >
+        <img
+          src={item.imgSrc}
+          alt=""
+          style={{ width: '100%', verticalAlign: 'top' }}
+        />
+      </a>
+    ))
+  }
+
+  // 渲染最新资讯
+  renderNews() {
+    return this.state.news.map(item => (
+      <div className="news-item" key={item.id}>
+        <div className="imgwrap">
+          <img
+            className="img"
+            src={`${item.imgSrc}`}
+            alt=""
+          />
+        </div>
+        <Flex className="content" direction="column" justify="between">
+          <h3 className="title">{item.title}</h3>
+          <Flex className="info" justify="between">
+            <span>{item.from}</span>
+            <span>{item.date}</span>
+          </Flex>
+        </Flex>
+      </div>
+    ))
+  }
+
+  render() {
+    return (
+      <div className="index">
+        {/* 轮播图 */}
+        <div className="swiper">
+          {this.state.sSwipersLoaded ? <Carousel
+            autoplay={true}
+            infinite
+            autoplayInterval={5000}
+          >
+            {this.renderSwipers()}
+          </Carousel> : <Carousel
+            autoplay={true}
+            infinite
+            autoplayInterval={5000}
+          >
+            {this.renderSwipers()}
+          </Carousel>}
+
+          {/* 搜索框 */}
+          <Flex className="search-box">
+            {/* 左侧白色区域 */}
+            <Flex className="search">
+              {/* 位置 */}
+              <div
+                className="location"
+                onClick={() => this.props.history.push('/citylist')}
+              >
+                <span className="name">{this.state.curCityName}</span>
+                <i className="iconfont icon-arrow" />
+              </div>
+
+              {/* 搜索表单 */}
+              <div
+                className="form"
+                onClick={() => this.props.history.push('/search')}
+              >
+                <i className="iconfont icon-seach" />
+                <span className="text">请输入小区或地址</span>
+              </div>
+            </Flex>
+            {/* 右侧地图图标 */}
+            <i
+              className="iconfont icon-map"
+              onClick={() => this.props.history.push('/map')}
+            />
+          </Flex>
+        </div>
+
+        {/* 导航菜单 */}
+        <Flex className="nav">
+          {this.renderNavs()}
+        </Flex>
+        {/* 租房小组 */}
+        <div className="group">
+          <h3 className="group-title">租房小组<span className="more">更多</span></h3>
+
+          {/* 宫格组件 */}
+          <Grid
+            data={this.state.groups}
+            columnNum={2}
+            square={false}
+            hasLine={false}
+            renderItem={item => (
+              <Flex className="group-item" justify="around" key={item.id}>
+                <div className="desc">
+                  <p className="title">{item.title}</p>
+                  <span className="info">{item.desc}</span>
+                </div>
+                <img src={`${item.imgSrc}`} alt="" />
+              </Flex>
+            )}
+          />
+        </div>
+
+
+        {/* 最新资讯 */}
+        <div className="news">
+          <h3 className="group-title">最新资讯</h3>
+          <WingBlank size="md">{this.renderNews()}</WingBlank>
+        </div>
+      </div>
+
+
+
+    );
+  }
+}
+
